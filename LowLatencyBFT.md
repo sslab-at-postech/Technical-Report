@@ -104,20 +104,22 @@
   
   Theorem 3. (Termination) 각 physical block에 대한 합의 결과는 언젠가 반드시 도출된다.
   
-  Proof.
+  Proof. Partially synchronous network를 assume 하고 있다. 즉, 노드와 노드가 교환하는 메시지는 global stabilization time (GST) 이후에 언젠가 도착하게 된다. BSP로부터의 physical block에 대한 chunk는 반드시 각 auditor한테 도달하고, honest한 모든 n-f 개의 auditor 노드는 수신한 chunk를 기준으로 logical block proposal을 생성하게 된다. 각 auditor 노드로부터 생성된 logical block proposal은 모든 honest한 auditor 노드한테 도달하기 때문에, 모든 honest한 auditor 노드로부터 해당 logical block proposal에 대한 vote를 반드시 받을 수 있다. Physical block에 대한 합의 결과는 logical block에 대한 certificate를 수신 여부로 결정되기 때문에, 각 physical block에 대한 합의 결과는 언젠가 반드시 도출된다.
+  
+  아래 세 가지 Theorem에 대해서도 증명 가능하다.
   
   모든 physical block Bh 와 모든 honest한 auditor Ai 를 기준으로 생각했을 때, 모든 commit된 logical block Bhi' 에 대하여, 만일 한 honest auditor Ai 가 최종적으로 logical block Bhi'을 commit 하였다면,
  
   Theorem 4. (Availability) Ai 가 Read(h) 한다면, 그 auditor는 최종적으로 physical block Bh 을 재구성할 수 있다.
   
-  Proof. 
+  Proof. logical block Bhi'을 commit 하였다는 뜻은 반드시 logical block Bhi'에 대한 certificate가 존재한다는 의미이다. 즉, physical block Bh에 대한 chunk n-f개 이상이 auditor network에 분배되어 있다는 뜻이다. 설령, malicious 한 auditor 최대 f개의 chunk가 vote 이후 유실된다고 하더라도, EC(n, n-2f) 인코딩 scheme을 적용하고 있기 때문에, n-f-f = n-2f 개의 chunk 만 모으더라도, physical block Bh를 재구성할 수 있다.
  
   Theorem 5. (Integrity) 다른 모든 honest auditor Ai 가 invoke한 모든 Read(h)는 동일한 physical block Bh를 반환한다. 
   
-  Proof. 
+  Proof. Theorem 2에 의해서 높이가 고정되어 있는 상황에서는 commit 된 특정 높이의 physical block은 전부 같다. 즉, commit된 logical block Bhi'에 포함되어 있는 vote에 대응되는 auditor 들의 chunk를 통하여 physical block Bh를 재구성할 수 있다.
   
   Theorem 6. (Total Order) 다른 모든 honest auditor Ai 가 invoke한 모든 ReadCausal(h)는 동일한 순서의 physical block B1, B2, ..., Bh 를 반환한다.
   
-  Proof.
+  Proof. Voting rule (3)에 의해서 logical block Bhi'은 이전 라운드 h-1의 n-f 개 이상의 logical block을 참조한다. 즉, 이전 라운드 h-1의 n-f개 이상의 logical block을 통해서 physical block Bh-1 을 재구성할 수 있다. 마찬가지로 h-1의 logical block은 h-2 라운드의 n-f 개 이상의 logical block을 참조한다. 같은 원리로, Bh-2, Bh-3, ..., B1을 순서대로 재구성할 수 있다.
   
 
