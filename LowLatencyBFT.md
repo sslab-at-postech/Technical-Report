@@ -36,7 +36,7 @@
   우리는 클라이언트로부터의 트랜잭션 batch를 physical block으로 정의하고, physical block을 이레이저 코딩하여 생긴 chunk에 대응되는 block을 logical block으로 정의한다. 
   Physical block 생성, physical block encoding 그리고 encoding 결과 생성된 chunk 전파를 담당하는 하나의 Blockchain Service Provider (BSP) 노드와 logical block 전파와 physical block의 causality와 availability 확인을 위한 투표를 담당하는  개의 auditor 노드를 가정한다. 최대 개의 auditor가 byzantine fault를 일으킬 수 있다.
   우리 시스템은 일반적인 BFT 합의 프로토콜이 만족하는 세 가지 보안 특성 [5] 을 만족한다. 현재 우리 시스템에 맞게 세 가지 특성을 재구성하여 기술하였다.
-  • Validity: 만일 한 auditor가 특정 logical block에 대하여 개 이상의 auditor 노드가 합의 하였다면, 그 logical block은 특정 auditor 노드에 의해서 propose된 logical block이다.
+  • Validity: 만일 특정 logical block에 대하여 n-f 개 이상의 auditor 노드가 합의 하였다면, 그 logical block은 특정 auditor 노드에 의해서 propose된 logical block이다.
   • Agreement: 만일 한 honest한 auditor가 최종적으로 특정 높이의 physical block을 commit 하고, 다른 honest한 auditor도 해당 높이의 physical block에 대하여 commit한다면, 그 block은 같다.
   • Termination: 각 physical block에 대한 합의 결과는 언젠가 반드시 도출된다.
   클라이언트, BSP, auditor단 트랜잭션 제출 및 처리를 위한 인터페이스들이 존재한다. 
@@ -55,7 +55,7 @@
   
   ### 2.2 시스템 구조
  BSP는 클라이언트로부터 트랜잭션을 받는다. BSP는 수신한 트랜잭션을 기준으로 트랜잭션 batch를 구성하여, physical block을 구성한다. Physical block은 정해진 순서가 있는 linear chain 형태로 구성된다. BSP는 구성된 physical block에 Erasure Coding을 적용한다. 이 때, 를 통해서 Erasure Coding을 적용하는데, 그 뜻은 전체의 데이터를 개로 나누고,  개의 chunk 만을 가지고도 다시 원래의 데이터를 복구할 수 있다는 뜻이다. 해당 encoding 된 데이터를 chunk라고 하고, BSP는 각 chunk를 auditor 들에게 전파하게 된다. 
-  Auditor는 logical block proposal과 vote를 round 단위로 진행한다. Logical block proposal은 각 auditor는 하나의 chunk를 BSP로부터 전파받는다. Auditor는 전파받은 chunk를 기준으로 logical block을 생성한다. Auditor는 logical block을 생성할 경우, 다른 auditor들에게 내가 BSP로부터 chunk를 받았다는 사실을 알리기 위해 logical block을 propose한다. 또, logical block vote는 다른 auditor가 propose한 logical block이 valid하다고 판단할 경우, logical block에 대하여 vote한다. physical block에 대한 chunk가 auditor network상 충분히 분배되어 있는지 확인하기 위하여 vote를 진행한다. 한 auditor가 특정 logical block에 대하여 개 이상의 vote를 모았을 경우, vote를 기준으로 certificate를 생성하고, 생성된 certificate를 다른 auditor들에게 전파한다. 각 auditor는 logical block과 certificate를 모두 가지고 있는 경우, logical block과 certificate으로 해당 round의 한 DAG 노드를 생성한다.
+  Auditor는 logical block proposal과 vote를 round 단위로 진행한다. Logical block proposal은 각 auditor는 하나의 chunk를 BSP로부터 전파받는다. Auditor는 전파받은 chunk를 기준으로 logical block을 생성한다. Auditor는 logical block을 생성할 경우, 다른 auditor들에게 내가 BSP로부터 chunk를 받았다는 사실을 알리기 위해 logical block을 propose한다. 또, logical block vote는 다른 auditor가 propose한 logical block이 valid하다고 판단할 경우, logical block에 대하여 vote한다. physical block에 대한 chunk가 auditor network상 충분히 분배되어 있는지 확인하기 위하여 vote를 진행한다. 한 auditor가 특정 logical block에 대하여 n-f 개 이상의 vote를 모았을 경우, vote를 기준으로 certificate를 생성하고, 생성된 certificate를 다른 auditor들에게 전파한다. 각 auditor는 logical block과 certificate를 모두 가지고 있는 경우, logical block과 certificate으로 해당 round의 한 DAG 노드를 생성한다.
   
   ### 2.3 메시지 형식
   
@@ -67,7 +67,7 @@
   ### 2.4 프로토콜
   각 auditor 입장에서 round 진행 규칙은 아래와 같다. 각 auditor는 라운드 에서 아래 세 가지 중에 하나만 만족하면, 다음 라운드 로 넘어간다. (1) round r 에 대해서, 개 이상의 logical block에 대한 certificate를 가지고 있을 경우, (2) 특정 round 에 대한 chunk를 수신한 시점에 timer를 시작하고, 에 대한 logical block certificate가 도착한 시점에 timer를 다시 초기화 한다고 하자. Timer 최대 대기 시간을 초과하는 경우. 만일 최대 대기 시간을 초과하는 경우, 최대 대기 시간을 두 배로 변경한다. 만일 최대 대기 시간 이전 라운드가 진행된다면, 다시 최대 대기 시간을 초기화한다. (3) 현재 라운드보다 더 큰 라운드에 대한 logical block proposal 이나 certificate를 수신한 경우.
   각 auditor의 proposal 규칙은 아래와 같다. 두 개 규칙을 모두 만족해야만 propose할 수 있다. (1) 이전 라운드에 대한 개 이상의 certificate를 가지고 있는 경우, (2) 해당 라운드에 대한 physical block의 chunk를 수신한 경우, 두 개를 모두 만족하면 logical block proposal을 낼 수 있다.
-  각 auditor의 voting rule은 아래와 같다. 다섯 가지 조건을 모두 만족하면, 해당 logical block proposal에 대하여 투표할 수 있다. (1) block proposal이 올바른 signature를 포함하고 있는 경우, (2) block proposal이 현재 내가 유지하고 있는 round값과 같은 round를 포함하고 있는 경우, (3) block proposal 이 이전 라운드의 개 이상의 certificate를 포함하고 있는 경우, (4) block proposal 이 해당 round의 proposal 내 auditor로부터 처음 수신받는 block proposal일 경우, (5) block proposal이 유효한 Merkle root를 포함하고 있는 경우 투표한다.
+  각 auditor의 voting rule은 아래와 같다. 다섯 가지 조건을 모두 만족하면, 해당 logical block proposal에 대하여 투표할 수 있다. (1) block proposal이 올바른 signature를 포함하고 있는 경우, (2) block proposal이 현재 내가 유지하고 있는 round값과 같은 round를 포함하고 있는 경우, (3) block proposal 이 이전 라운드의 n-f 개 이상의 certificate를 포함하고 있는 경우, (4) block proposal 이 해당 round의 proposal 내 auditor로부터 처음 수신받는 block proposal일 경우, (5) block proposal이 유효한 Merkle root를 포함하고 있는 경우 투표한다.
   Physical block에 대한 commit rule은 아래와 같다. 각 auditor는 두 가지 조건 중 하나를 만족할 때, 현재 라운드의 physical block에 대하여 commit 한다. (1) 현재 라운드 중 적어도 하나의 logical block에 대한 certificate를 가지고 있는 경우, (2) 이후 라운드 중 적어도 하나의 logical block에 대한 certificate를 가지고 있는 경우, physical block에 대하여 commit 한다.
   Physical block commit 이후 각 auditor는 해당 블록에 대한 chunk에 대해서 저장한다. 
   
@@ -94,13 +94,13 @@
 
     
   ## Appendix 특성 증명
-  Theorem 1. (Validity) 만일 한 auditor가 특정 logical block에 대하여 n-f개 이상의 auditor 노드가 합의 하였다면, 그 logical block은 특정 auditor 노드에 의해서 propose된 logical block이다.
+  Theorem 1. (Validity) 만일 특정 logical block에 대하여 n-f개 이상의 auditor 노드가 합의 하였다면, 그 logical block은 특정 auditor 노드에 의해서 propose된 logical block이다.
   
-  Proof.
+  Proof. 그림 5 메시지 형식에서 보면, logical block proposal 내 signature of sender가 포함되어있다. 특정 logcial block에 대하여 n-f개 이상의 auditor 노드가 합의 하였다는 뜻은, 해당 logical block의 경우 모든 honest한 노드가 logical block 내 signature of sender를 검증하고 vote한 logical block이다. Q.E.D.
   
   Theorem 2. (Agreement) 만일 한 honest한 auditor가 최종적으로 특정 높이의 physical block을 commit 하고, 다른 honest한 auditor도 해당 높이의 physical block에 대하여 commit한다면, 그 block은 같다.
   
-  Proof.
+  Proof. Voting rule (5)를 살펴보았을 때, 각 auditor는 valid한 merkle root가 포함되어 있는지 검증한 이후에 vote 한다. Physical block에 대한 commit 조건 두 가지로 경우를 나누어 생각해보자. (1) 현재 라운드 중 적어도 하나의 certificate를 가지고 있는 경우, voting rule (5)에 의하여 같은 라운드의 서로 다른 auditor로부터의 certificate는 전부 같은 physical block을 가리킨다. 만일 다른 physical block을 가리킬 경우 voting rule (4), (5)에 위배되어 각 auditor가 투표하지 않음. (2) 이후 라운드 중 적어도 하나의 logical block에 대한 certificate를 가지고 있는 경우, 미래의 적어도 하나의 logical block에 대한 certificate가 나온 라운드를 r'이라고 하자. r' certificate에 속해 있는 r'-1 의 n-f 개 certificate는 고정 되어 있다. 즉, r'-1의 n-f개 certificate는 n-f 개 이상의 auditor 노드에 의하여 합의된 이전 라운드의 certificate이다. 같은 방식으로 r'-2, r'-3..., r 의 certificate 는 모든 honest 한 auditor 노드에 의해서 각 라운드의 logical block이 합의되었다는 것을 의미한다. 결국 이전 모든 라운드에 대해서도 같은 physical block에 대해서 commit한다.
   
   Theorem 3. (Termination) 각 physical block에 대한 합의 결과는 언젠가 반드시 도출된다.
   
