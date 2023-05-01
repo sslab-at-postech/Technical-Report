@@ -58,6 +58,10 @@
   Auditor는 logical block proposal과 vote를 round 단위로 진행한다. Logical block proposal은 각 auditor는 하나의 chunk를 BSP로부터 전파받는다. Auditor는 전파받은 chunk를 기준으로 logical block을 생성한다. Auditor는 logical block을 생성할 경우, 다른 auditor들에게 내가 BSP로부터 chunk를 받았다는 사실을 알리기 위해 logical block을 propose한다. 또, logical block vote는 다른 auditor가 propose한 logical block이 valid하다고 판단할 경우, logical block에 대하여 vote한다. physical block에 대한 chunk가 auditor network상 충분히 분배되어 있는지 확인하기 위하여 vote를 진행한다. 한 auditor가 특정 logical block에 대하여 개 이상의 vote를 모았을 경우, vote를 기준으로 certificate를 생성하고, 생성된 certificate를 다른 auditor들에게 전파한다. 각 auditor는 logical block과 certificate를 모두 가지고 있는 경우, logical block과 certificate으로 해당 round의 한 DAG 노드를 생성한다.
   
   ### 2.3 메시지 형식
+  
+  <img width="1327" alt="Audit Chain 2 0 메시지 형식" src="https://user-images.githubusercontent.com/23546909/235393883-c795bd66-d96e-487c-961f-4b28a5f333c5.png">
+  그림 5. Audit Chain 2.0 메시지 형식. 메시지 형식 상 표시되어 있는 block은 전부 logical block을 의미한다.
+  
    그림 5는 Audit Chain 2.0 상 BSP와 Auditor가 주고 받는 메시지 형식을 나타낸다. 한 auditor는 하나의 physical block에 대하여 하나의 chunk를 담당하여 저장하고 전파한다. 이에 chunk 에는 physical block에 대하여 어떤 chunk에 대응되는지 확인 목적으로 chunk id, 어떤 physical block에 대하여 대응되는지 확인 목적으로, block num을 가지고 있다. 또한, BSP는 해당 chunk가 physical block에 대응되는 chunk라는 사실을 증명하기 위하여 chunk들을 leaf node로 하는 merkle tree를 구성하고, merkle root와 merkle path를 chunk에 대한 metadata로 구성하여 포함한다. Certificate 상 포함된 개의 signature는 해당 logical block에 대한 vote 인증으로 볼 수 있다.
   
   ### 2.4 프로토콜
