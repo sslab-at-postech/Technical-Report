@@ -3,19 +3,30 @@
 # A Low-Latency BFT Consensus Protocol utilizing Erasure Code Based Broadcast
 
 ## 요약
-    BFT 기반 합의 프로토콜을 채택하는 블록체인 플랫폼에서는 트랜잭션 전파, 블록 생성, 블록 전파, BFT 합의, 트랜잭션 수행, 그리고 트랜잭션에 대한 응답 등 크게 여섯가지 단계를 거쳐 클라이언트 트랜잭션을 처리한다. 대부분의 BFT 기반 합의 프로토콜은 클라이언트 트랜잭션 처리 과정상 BFT 합의 과정에 집중하고 있으며, 블록 생성, 전파 및 합의 과정이 하나로 묶여서 구성되어 있는 Monolithic한 합의 구조를 가진다. 따라서 이로 인해 트랜잭션 전파 과정은 합의 과정과 별도로 처리되어야 함에 따라, 트랜잭션 전파 및 블록 전파가 중복적으로 진행되어야 하는 네트워크 오버헤드가 존재한다. 본 논문에서는 트랜잭션 전파와 블록 전파를 통합하고, 또한 블록 전파시 이레이저 코드를 적용하여 블록 전파에 대한 지연 시간을 줄이는 저지연 BFT 합의 프로토콜을 제안한다. 제안한 합의 프로토콜의 성능 검증을 위해 허가형 블록체인 플랫폼 Audit Chain [4]에 적용하고, 결과적으로 네트워크 성능에 크게 영향을 받지 않음을 보였다. 
+    
+    BFT 기반 합의 프로토콜을 채택하는 블록체인 플랫폼에서는 트랜잭션 전파, 블록 생성, 블록 전파, BFT 합의, 트랜잭션 수행, 그리고 트랜잭션에 대한 응답 등 크게 여섯가지 단계를 거쳐 클라이언트 트랜잭션을 처리한다. 대부분의 BFT 기반 합의 프로토콜은 클라이언트 트랜잭션 처리 과정상 BFT 합의 과정에 집중하고 있으며, 블록 생성, 전파 및 합의 과정이 하나로 묶여서 구성되어 있는 Monolithic한 합의 구조를 가진다. 따라서 이로 인해 트랜잭션 전파 과정은 합의 과정과 별도로 처리되어야 함에 따라, 트랜잭션 전파 및 블록 전파가 중복적으로 진행되어야 하는 네트워크 오버헤드가 존재한다. 본 논문에서는 트랜잭션 전파와 블록 전파를 통합하고, 또한 블록 전파시 이레이저 코드를 적용하여 블록 전파에 대한 지연 시간을 줄이는 저지연 BFT 합의 프로토콜을 제안한다. 제안한 합의 프로토콜의 성능 검증을 위해 허가형 블록체인 플랫폼 Audit Chain [4]에 적용하고, 결과적으로 네트워크 성능에 크게 영향을 받지 않음을 보였다.
+
   
 ## 1.서론
   BFT 기반 합의 프로토콜을 채택하는 블록체인 플랫폼에서는 트랜잭션 전파, 블록 생성, 블록 전파, BFT 합의, 트랜잭션 수행, 그리고 트랜잭션에 대한 응답을 거쳐 클라이언트 트랜잭션을 처리한다.
-  현재 대부분의 BFT 기반 합의 프로토콜에 관련된 연구는 그림 1의 transaction lifecycle 상 BFT Consensus 부분에 집중하고 있다. 실제, Hotstuff [1], Fast Hotstuff [2], DiemBFT [3] 와 같은 연구들은 합의 프로토콜 오버헤드를 고려하여 리더 중심의 합의 프로토콜을 적용해 합의 알고리즘 복잡도를 O(n)으로 줄였다. 추가로, 합의 라운드 개수를 줄임으로 합의 과정의 latency를 낮춘다. 
+  현재 대부분의 BFT 기반 합의 프로토콜에 관련된 연구는 그림 1의 transaction lifecycle 상 BFT Consensus 부분에 집중하고 있다. 실제, Hotstuff [1], Fast Hotstuff [2], DiemBFT [3] 와 같은 연구들은 합의 프로토콜 오버헤드를 고려하여 리더 중심의 합의 프로토콜을 적용해 합의 알고리즘 복잡도를 O(n)으로 줄였다. 추가로, 합의 라운드 개수를 줄임으로 합의 과정의 latency를 낮춘다.
+  
+![Figure 0 일반적인 BFT 기반 블록체인에서의 transaction lifecycle](https://user-images.githubusercontent.com/23546909/235391635-f8bcca05-6494-4959-aab7-90325394db65.png)
+그림 1. BFT 합의 프로토콜 채택 블록체인 플랫폼 transaction lifecycle
 
   하지만 일반적인 BFT 기반 합의 프로토콜의 경우, 블록 생성, 전파 및 합의 과정이 하나로 묶여서 구성되어 있는 Monolithic 합의 구조를 가지고 있다. Monolithic한 합의 구조로 블록 생성 및 전송에서 오는 오버헤드가 존재한다. 그림 1 에서 보이듯, 각 노드들이 BFT 합의를 진행하기 위해서는 앞선 과정에서 블록을 생성하고 전파하는 과정이 수반되어야 한다. 블록 생성 및 전파 과정에서의 블록 크기가 BFT Consensus 과정에서 주고 받는 합의 메시지보다 크기 때문에, 리더 기반 BFT 합의 알고리즘에서의 leader bottleneck이 존재한다.
   Audit Chain [4] 은 Monolithic한 합의 구조에서 오는 문제점을 해결하기 위하여, 블록 생성 및 전파를 담당하는 Blockchain Service Provider (BSP) 와 BFT 합의 및 BSP 감시/교체를 담당하는 Auditor로 구성된 BFT 합의 프로토콜이다 (그림 2). 크게 세 가지 아이디어를 기반으로 합의 구조에 대한 문제점을 해결하였다. (1) O(n) 메시지 복잡도를 가지는 선형화된 BFT 합의 프로토콜이다. 블록 전파 대신 블록 해시 전파로 BFT 합의를 시작하는 overlapping 최적화 기법, 합의 과정을 중첩하여 진행하는 pipelining 기법을 적용하여 블록 생성 및 전파에서 오는 오버헤드 및 합의 오버헤드를 줄였다. (2) 블록 생성과 합의 과정을 분리함으로써, 각 과정이 독립적으로 수행될 수 있도록 하였다. 이는 블록 생성 과정, 블록 합의 과정을 위해 구성된 P2P 오버레이 네트워크의 효과를 확대한다. 또한, 전체 트랜잭션 처리에 대한 워크로드를 다른 노드에 분담함으로써, 블록 생성, 블록 전파, 그리고 합의에 대한 오버헤드를 줄인다. (3) Speculative하게 트랜잭션을 BSP 단에서 수행하도록 함으로써, BSP 수준에서의 트랜잭션 처리 혹은 auditor 단에서의 트랜잭션 처리를 지원한다.
+  
+  ![Audit Chain 1 0](https://user-images.githubusercontent.com/23546909/235391614-12ff29bf-fca8-4721-abe7-81367640b1e5.png)
+  그림 2. Audit Chain transaction lifecycle
 
   본 논문에서는 트랜잭션 전파와 블록 전파를 통합하고, 블록 전파 단에서 이레이저 코드를 적용하여 블록 전파에 대한 지연시간을 줄이는 저지연 BFT 합의 프로토콜을 제안한다. 제안한 합의 프로토콜의 검증을 위해 허가형 블록체인 플랫폼 Audit Chain [4]에 적용한다. (이하 적용 버전을 Audit Chain 2.0으로 일컬음.) Audit Chain 2.0에 대한 주요 contribution은 아래와 같다.
   • 블록 생성 및 전파 단에서 이레이저 코드를 적용하여 블록 전파에 대한 지연시간을 줄이고, 블록 저장 오버헤드를 감소시켰다.
   • Block Availability Layer와 Block Consensus Layer를 분리하여, 블록 생성 및 전파와 블록 합의 과정이 독립적으로 수행될 수 있도록 하였다.
   • Block Availability Layer에서 블록에 대한 causality와 availability를 보장하고, Block Consensus Layer 상에서는 total order를 위한 별도의 communication overhead 없이 각자 auditor 노드가 total order를 결정하고, 트랜잭션을 수행한다.
+  
+  ![표 0 transaction batch 당 보내는 데이터 양 및 전송 시간 비교표](https://user-images.githubusercontent.com/23546909/235391666-0a6612c0-2444-46d9-ab6c-04d2a1965245.png)
+  표 1. transaction batch 당 보내는 데이터 양 및 전송 시간 비교
 
   지금부터, Audit Chain [4] 을 Audit Chain 1.0 이라고 일컬을 때, 하나의 트랜잭션 batch에 대하여 BSP로부터 각 auditor에게 보내는 데이터 양은 Audit Chain 2.0 이 Audit Chain 1.0 보다 더 작다. 이에, 한 트랜잭션 batch를 보내는 시간이 Audit Chain 2.0 이 Audit Chain 1.0 보다 더 짧다 (표 1).
   
@@ -39,6 +50,9 @@
   • Integrity: 다른 모든 honest auditor 가 invoke한 모든 Read()는 동일한 physical block 를 반환한다.   
   • Total Order: 다른 모든 honest auditor 가 invoke한 모든 ReadCausal()는 동일한 순서의 physical block  를 반환한다.
   
+  ![Audit Chain 2 0 Architecture](https://user-images.githubusercontent.com/23546909/235391660-cc0cfe48-5d17-462e-ba95-df3ec408b931.png)
+  그림 4. Audit Chain 2.0 구조
+  
   ### 2.2 시스템 구조
  BSP는 클라이언트로부터 트랜잭션을 받는다. BSP는 수신한 트랜잭션을 기준으로 트랜잭션 batch를 구성하여, physical block을 구성한다. Physical block은 정해진 순서가 있는 linear chain 형태로 구성된다. BSP는 구성된 physical block에 Erasure Coding을 적용한다. 이 때, 를 통해서 Erasure Coding을 적용하는데, 그 뜻은 전체의 데이터를 개로 나누고,  개의 chunk 만을 가지고도 다시 원래의 데이터를 복구할 수 있다는 뜻이다. 해당 encoding 된 데이터를 chunk라고 하고, BSP는 각 chunk를 auditor 들에게 전파하게 된다. 
   Auditor는 logical block proposal과 vote를 round 단위로 진행한다. Logical block proposal은 각 auditor는 하나의 chunk를 BSP로부터 전파받는다. Auditor는 전파받은 chunk를 기준으로 logical block을 생성한다. Auditor는 logical block을 생성할 경우, 다른 auditor들에게 내가 BSP로부터 chunk를 받았다는 사실을 알리기 위해 logical block을 propose한다. 또, logical block vote는 다른 auditor가 propose한 logical block이 valid하다고 판단할 경우, logical block에 대하여 vote한다. physical block에 대한 chunk가 auditor network상 충분히 분배되어 있는지 확인하기 위하여 vote를 진행한다. 한 auditor가 특정 logical block에 대하여 개 이상의 vote를 모았을 경우, vote를 기준으로 certificate를 생성하고, 생성된 certificate를 다른 auditor들에게 전파한다. 각 auditor는 logical block과 certificate를 모두 가지고 있는 경우, logical block과 certificate으로 해당 round의 한 DAG 노드를 생성한다.
@@ -55,6 +69,10 @@
   
   ## 3. 분석
   우리는 표 1을 기준으로 트랜잭션 batch (logical block) 전파 시간 측면에서 Audit Chain 1.0과 Audit Chain 2.0을 비교 분석하였다.
+  
+  <img width="583" alt="latency vs  number of auditors" src="https://user-images.githubusercontent.com/23546909/235391684-d4ffffd7-aeed-466b-ab29-f30a8105fdc4.png">
+  그림 6 트랜잭션 batch 전파 시간 vs. auditor 개수
+  
   평균 트랜잭션 크기를 2.82KB (대표 Permissioned Blockchain Hyperledger Fabric 기준으로 할 때), batch size를 100이라고 가정한다. Audit Chain 2.0의 경우 auditor의 개수가 증가하는 것 (i.e. 네트워크 통신 오버헤드 증가)에 큰 영향을 받지 않고, 비슷한 수준의 트랜잭션 batch 전송 시간을 가진다. 
   
   ## 4. 결론 및 향후 방향
